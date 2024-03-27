@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<labellers>
+
+    <site id="Test">
+
+        <labeller id="VIDEOJET 1">
+           <enabled>Y</enabled>
+            <ipAddress>192.168.1.62</ipAddress>
+            <portNumber>9100</portNumber>
+            <commandFile>CASE_160x60_VIDEOJET.txt</commandFile>
+            <inputPath>/Commander4j/xml/interface/output/Auto Labeller/</inputPath>
+            <inputFile>VIDEJET 1.CSV</inputFile>
+            <mode>direct</mode>
+        </labeller>
+        
+        <labeller id="LOGOPAK 1">
+           <enabled>Y</enabled>
+            <ipAddress>192.168.1.62</ipAddress>
+            <portNumber>8300</portNumber>
+            <commandFile>CASE_160x60_LOGOPAK.txt</commandFile>
+            <inputPath>/Commander4j/xml/interface/output/Auto Labeller/</inputPath>
+            <inputFile>LOGOPAK 1.CSV</inputFile>
+            <mode>direct</mode>
+        </labeller>
+        
+    </site>
+
+</labellers>
