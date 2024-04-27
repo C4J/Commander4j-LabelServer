@@ -2,7 +2,7 @@
 <install4j version="10.0.7" transformSequenceNumber="10">
   <directoryPresets config="./images/icons/Lab4j_Icons" />
   <application name="Commander4j Labeller Service" applicationId="8461-5694-2977-9757" mediaDir="../../../Distribution/java17/b6LabelServer" shortName="c4jLabeller" publisher="David Garratt" publisherWeb="http://www.commander4j.com" version="3.01" allPathsRelative="true" macVolumeId="e839608d493c536c" javaMinVersion="17" javaMaxVersion="17" allowBetaVM="true">
-    <jreBundles jdkProviderId="Zulu" release="17/17.0.10" />
+    <jreBundles jdkProviderId="Zulu" release="17/17.0.11" />
   </application>
   <files keepModificationTimes="true" globalExcludeSuffixes="dirClean.ok,.DS_Store">
     <mountPoints>
@@ -22,18 +22,49 @@
           <entry location=".DS_Store" />
         </exclude>
       </dirEntry>
-      <dirEntry mountPoint="60" file="./labeller_requests" overwriteMode="1" uninstallMode="1" overrideOverwriteMode="true" overrideUninstallMode="true" subDirectory="labeller_requests" />
-      <dirEntry mountPoint="61" file="./labeller_files" overwriteMode="1" uninstallMode="1" overrideOverwriteMode="true" overrideUninstallMode="true" subDirectory="labeller_files" />
+      <dirEntry mountPoint="60" file="./labeller_requests" overwriteMode="1" uninstallMode="1" overrideOverwriteMode="true" overrideUninstallMode="true" subDirectory="labeller_requests">
+        <exclude>
+          <entry location=".DS_Store" />
+          <entry location="samples/.DS_Store" />
+        </exclude>
+      </dirEntry>
+      <dirEntry mountPoint="61" file="./labeller_files" overwriteMode="1" uninstallMode="1" overrideOverwriteMode="true" overrideUninstallMode="true" subDirectory="labeller_files">
+        <exclude>
+          <entry location=".DS_Store" />
+          <entry location="Wisbech" />
+          <entry location="Wroclaw" />
+          <entry location="Portogruaro" />
+          <entry location="Buk" />
+        </exclude>
+      </dirEntry>
       <dirEntry mountPoint="62" file="./labeller_cmd" overwriteMode="1" uninstallMode="1" overrideOverwriteMode="true" overrideUninstallMode="true" subDirectory="labeller_cmd">
         <exclude>
           <entry location=".DS_Store" />
+          <entry location="Wisbech" />
+          <entry location="Wroclaw" />
+          <entry location="Portogruaro" />
+          <entry location="Buk" />
         </exclude>
       </dirEntry>
-      <dirEntry mountPoint="63" file="./labeller_backups" overwriteMode="0" uninstallMode="1" overrideOverwriteMode="true" overrideUninstallMode="true" subDirectory="labeller_backups" />
-      <dirEntry mountPoint="64" file="./logs" overwriteMode="0" uninstallMode="1" overrideOverwriteMode="true" overrideUninstallMode="true" subDirectory="logs" />
+      <dirEntry mountPoint="63" file="./labeller_backups" overwriteMode="0" uninstallMode="1" overrideOverwriteMode="true" overrideUninstallMode="true" subDirectory="labeller_backups">
+        <exclude>
+          <entry location=".DS_Store" />
+          <entry location="Wroclaw" />
+          <entry location="Buk" />
+        </exclude>
+      </dirEntry>
+      <dirEntry mountPoint="64" file="./logs" overwriteMode="0" uninstallMode="1" overrideOverwriteMode="true" overrideUninstallMode="true" subDirectory="logs">
+        <exclude>
+          <entry location="dirClean.ok" />
+        </exclude>
+      </dirEntry>
       <dirEntry mountPoint="164" file="./xml/config" overwriteMode="0" uninstallMode="1" overrideOverwriteMode="true" overrideUninstallMode="true" subDirectory="config">
         <exclude>
           <entry location=".DS_Store" />
+          <entry location="Wisbech" />
+          <entry location="Wroclaw" />
+          <entry location="Portogruaro" />
+          <entry location="Buk" />
         </exclude>
       </dirEntry>
       <fileEntry mountPoint="58" file="./LabelServer.jar" />
