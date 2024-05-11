@@ -583,7 +583,7 @@ return console.askYesNo(message, true);
         </modules>
       </jreBundle>
     </macosFolder>
-    <windows name="Windows" id="162" architecture="64">
+    <windows name="Windows" id="162" customInstallBaseDir="C:\c4jLabelServer" architecture="64">
       <jreBundle usePack200="false" includedJre="windows-amd64-1.8.0_202">
         <modules>
           <defaultModules set="all" />
