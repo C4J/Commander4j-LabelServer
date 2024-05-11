@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install4j version="10.0.7" transformSequenceNumber="10">
   <directoryPresets config="./images/icons/Lab4j_Icons" />
-  <application name="Commander4j Labeller Service" applicationId="8461-5694-2977-9757" mediaDir="../../../Distribution/java17/b6LabelServer" shortName="c4jLabeller" publisher="David Garratt" publisherWeb="http://www.commander4j.com" version="3.01" allPathsRelative="true" macVolumeId="e839608d493c536c" javaMinVersion="17" javaMaxVersion="17" allowBetaVM="true">
+  <application name="Commander4j Labeller Service" applicationId="8461-5694-2977-9757" mediaDir="../../../Distribution/java17/b6LabelServer" shortName="c4jLabeller" publisher="David Garratt" publisherWeb="http://www.commander4j.com" version="3.02" allPathsRelative="true" macVolumeId="e839608d493c536c" javaMinVersion="17" javaMaxVersion="17" allowBetaVM="true">
     <jreBundles jdkProviderId="Zulu" release="17/17.0.11" />
   </application>
   <files keepModificationTimes="true" globalExcludeSuffixes="dirClean.ok,.DS_Store">
