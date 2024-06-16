@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<install4j version="10.0.7" transformSequenceNumber="10">
+<install4j version="10.0.8" transformSequenceNumber="10">
   <directoryPresets config="./images/icons/Lab4j_Icons" />
-  <application name="Commander4j Labeller Service" applicationId="8461-5694-2977-9757" mediaDir="../../../Distribution/java17/b6LabelServer" shortName="c4jLabeller" publisher="David Garratt" publisherWeb="http://www.commander4j.com" version="3.02" allPathsRelative="true" macVolumeId="e839608d493c536c" javaMinVersion="17" javaMaxVersion="17" allowBetaVM="true">
+  <application name="Commander4j Labeller Service" applicationId="8461-5694-2977-9757" mediaDir="../../../Distribution/java17/b6LabelServer" shortName="c4jLabeller" publisher="David Garratt" publisherWeb="http://www.commander4j.com" version="3.03" allPathsRelative="true" macVolumeId="e839608d493c536c" javaMinVersion="17" javaMaxVersion="17" allowBetaVM="true">
     <jreBundles jdkProviderId="Zulu" release="17/17.0.11" />
   </application>
   <files keepModificationTimes="true" globalExcludeSuffixes="dirClean.ok,.DS_Store">
@@ -576,22 +576,36 @@ return console.askYesNo(message, true);
     </styles>
   </installerGui>
   <mediaSets>
-    <macosFolder name="macOS Folder" id="161" architecture="universal">
-      <jreBundle usePack200="false" includedJre="macosx-amd64-1.8.0_202">
-        <modules>
-          <defaultModules set="all" />
-        </modules>
-      </jreBundle>
-    </macosFolder>
-    <windows name="Windows" id="162" customInstallBaseDir="C:\c4jLabelServer" architecture="64">
+    <windows name="Windows x64" id="162" mediaFileName="${compiler:sys.shortName}_${compiler:sys.version}_${compiler:sys.platform}${compiler:sys.withJre}" customInstallBaseDir="C:\" architecture="64">
       <jreBundle usePack200="false" includedJre="windows-amd64-1.8.0_202">
         <modules>
           <defaultModules set="all" />
         </modules>
       </jreBundle>
     </windows>
-    <unixInstaller name="Unix Installer" id="163">
+    <windows name="Windows arm64" id="267" mediaFileName="${compiler:sys.shortName}_${compiler:sys.version}_${compiler:sys.platform}${compiler:sys.withJre}" customInstallBaseDir="C:\" architecture="arm64">
+      <jreBundle usePack200="false" includedJre="windows-amd64-1.8.0_202">
+        <modules>
+          <defaultModules set="all" />
+        </modules>
+      </jreBundle>
+    </windows>
+    <unixInstaller name="Linux Installer" id="163" mediaFileName="${compiler:sys.shortName}_${compiler:sys.version}_linux${compiler:sys.withJre}">
       <jreBundle jreBundleSource="none" />
     </unixInstaller>
+    <macosFolder name="macOS Folder Intel" id="161" mediaFileName="${compiler:sys.shortName}_${compiler:sys.version}_intel_mac${compiler:sys.withJre}">
+      <jreBundle usePack200="false" includedJre="macosx-amd64-1.8.0_202">
+        <modules>
+          <defaultModules set="all" />
+        </modules>
+      </jreBundle>
+    </macosFolder>
+    <macosFolder name="macOS Folder Silicon" id="272" mediaFileName="${compiler:sys.shortName}_${compiler:sys.version}_silicon_mac${compiler:sys.withJre}" architecture="universal">
+      <jreBundle usePack200="false" includedJre="macosx-amd64-1.8.0_202">
+        <modules>
+          <defaultModules set="all" />
+        </modules>
+      </jreBundle>
+    </macosFolder>
   </mediaSets>
 </install4j>
