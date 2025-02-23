@@ -7,8 +7,8 @@
 <project basedir="." default="build" name="b6LabelServer">
 	<property environment="env"/>
 	<property name="debuglevel" value="source,lines,vars"/>
-	<property name="target" value="17"/>
-	<property name="source" value="17"/>
+	<property name="target" value="21"/>
+	<property name="source" value="21"/>
 	<path id="b6LabelServer.classpath">
 		<pathelement location="bin"/>
 		<pathelement location="xml/config"/>
@@ -18,8 +18,8 @@
 	</path>
 	<target name="init">
 		<mkdir dir="bin"/>
-		<copy includeemptydirs="false" todir="bin">
-			<fileset dir="src">
+		<copy includeemptydirs="false" todir="bin"  overwrite="true" preservelastmodified="true">
+			<fileset dir="src" excludes="**/doc-files/**">
 				<exclude name="**/*.launch"/>
 				<exclude name="**/*.java"/>
 			</fileset>
@@ -36,12 +36,14 @@
 		<javac debug="true" debuglevel="${debuglevel}" destdir="bin" includeantruntime="false" source="${source}" target="${target}">
 			<src path="src"/>
 			<classpath refid="b6LabelServer.classpath"/>
+			<compilerarg value="-proc:full"/>
 		</javac>
 	</target>
 	<target description="Build all projects which reference this project. Useful to propagate changes." name="build-refprojects"/>
 	<target name="Service">
 		<java classname="com.commander4j.labeller.Service" failonerror="true" fork="yes">
 			<classpath refid="run.Service.classpath"/>
+			<compilerarg value="-proc:full"/>
 		</java>
 	</target>
 </project>
