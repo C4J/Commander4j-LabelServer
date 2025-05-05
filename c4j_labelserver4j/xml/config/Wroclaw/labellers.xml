@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<labellers>
+
+    <site id="Wroclaw">
+		
+        <labeller id="CARTON LINE 4 LAB 1 SHRINK 80mm">
+            <enabled>Y</enabled>
+            <!--<ipAddress>10.25.37.190</ipAddress>-->
+			<ipAddress>10.25.37.199</ipAddress>
+            <portNumber>9100</portNumber>
+            <commandFile>CL4_LAB1_160x80.txt</commandFile>
+            <inputPath>F:\Apps\Production\Wroclaw\Commander4j\xml\interface\output\Auto Labeller\</inputPath>
+            <inputFile>CARTON LINE 4 - LAB 1 80 CL4 SHRINK_CL4 SHRINK.CSV</inputFile>
+            <mode>direct</mode>
+        </labeller>
+
+        <labeller id="CARTON LINE 4 LAB 2 SHRINK 40mm">
+            <enabled>Y</enabled>
+            <!--<ipAddress>10.25.37.200</ipAddress>-->
+		    <ipAddress>10.25.37.199</ipAddress>
+            <portNumber>9100</portNumber>
+            <commandFile>CL4_LAB2_160x40.txt</commandFile>
+            <inputPath>F:\Apps\Production\Wroclaw\Commander4j\xml\interface\output\Auto Labeller\</inputPath>
+            <inputFile>CARTON LINE 4 - LAB 2 40 CL4 SHRINK_MIX_CL4 SHRINK_MIXTRAY.CSV</inputFile>
+            <mode>direct</mode>
+        </labeller>
+		
+		<labeller id="CARTON LINE 4 LAB 2 SHRINK 80mm">
+            <enabled>Y</enabled>
+            <!--<ipAddress>10.25.37.200</ipAddress>-->
+			<ipAddress>10.25.37.199</ipAddress>
+            <portNumber>9100</portNumber>
+            <commandFile>CL4_LAB2_160x80.txt</commandFile>
+            <inputPath>F:\Apps\Production\Wroclaw\Commander4j\xml\interface\output\Auto Labeller\</inputPath>
+            <inputFile>CARTON LINE 4 - LAB 2 80 CL4 SHRINK_MIX_CL4 SHRINK_MIXTRAY.CSV</inputFile>
+            <mode>direct</mode>
+        </labeller>
+		
+    </site>
+
+</labellers>
