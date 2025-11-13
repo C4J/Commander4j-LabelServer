@@ -63,7 +63,7 @@ public class LabellerIntelHex
 		this.inputIndex = startIndex;
 		if ((input.length - this.inputIndex) < 13)
 		{
-			throw new LabellerIntelHexError(994, "Less than 13 characters found in line, abborting.");
+			throw new LabellerIntelHexError(994, "Less than 13 characters found in line, aborting.");
 		}
 
 		if (input[this.inputIndex++] != 0x3A)
@@ -84,7 +84,7 @@ public class LabellerIntelHex
 
 		if ((input.length - this.inputIndex) < bytesToBeRead + 2)
 		{
-			throw new LabellerIntelHexError(994, "Less than " + (bytesToBeRead + 2) + " characters found after record type, abborting.");
+			throw new LabellerIntelHexError(994, "Less than " + (bytesToBeRead + 2) + " characters found after record type, aborting.");
 		}
 
 		String outString = "";
@@ -256,7 +256,7 @@ public class LabellerIntelHex
 				if ((input.length - inputIndex) == 0)
 				{
 					outputStream.close();
-					throw new LabellerIntelHexError(994, "Terminator block missing at the end of file, abborting.");
+					throw new LabellerIntelHexError(994, "Terminator block missing at the end of file, aborting.");
 				}
 
 				if ((block = convertBlockFromIntelHex(input, inputIndex, textConversion, true)).length == 0)
