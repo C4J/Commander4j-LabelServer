@@ -17,6 +17,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.logging.log4j.Logger;
 
 import com.commander4j.util.JUtility;
@@ -35,7 +36,7 @@ public class Labeller extends Thread
 	private LabellerCMDFile labellerCMDFile = new LabellerCMDFile();
 	private String commandFile = "";
 	private boolean requestPrint = false;
-	public static String version = "3.75";
+	public static String version = "3.76";
 
 	private File fileWrite;
 	private int waitRetries = 20;
@@ -109,11 +110,11 @@ public class Labeller extends Thread
 
 			/* ADD CODE HERE TO POLL FOLDERS FOR DATA */
 			File inputData = new File(prop.getInputPath() + prop.getInputFile());
-			
-			
+
+
 			requestPrint = inputData.exists();
-			
-			
+
+
 
 			/* PARSE DATA */
 
@@ -328,11 +329,11 @@ public class Labeller extends Thread
 					String[] split1 = StringUtils.splitByWholeSeparator(VAL, "GOTO");
 					String criteria = split1[0];
 					String[] comparison = StringUtils.split(criteria, "=");
-					comparison[0] = StringUtils.replace(comparison[0], "'", "", -1).trim();
-					comparison[0] = StringUtils.replace(comparison[0], "(", "", -1).trim();
+					comparison[0] = Strings.CS.replace(comparison[0], "'", "", -1).trim();
+					comparison[0] = Strings.CS.replace(comparison[0], "(", "", -1).trim();
 
-					comparison[1] = StringUtils.replace(comparison[1], "'", "", -1).trim();
-					comparison[1] = StringUtils.replace(comparison[1], ")", "", -1).trim();
+					comparison[1] = Strings.CS.replace(comparison[1], "'", "", -1).trim();
+					comparison[1] = Strings.CS.replace(comparison[1], ")", "", -1).trim();
 
 					logger.debug("compare ["+comparison[0]+"] with ["+comparison[1]+"]");
 					if (comparison[0].equals(comparison[1]))
@@ -350,7 +351,7 @@ public class Labeller extends Thread
 					/* 'nestle.pcx' GOTO label" */
 					String[] split2 = StringUtils.splitByWholeSeparator(VAL, "GOTO");
 					String find = split2[0];
-					find = StringUtils.replace(find, "'", "", -1).trim();
+					find = Strings.CS.replace(find, "'", "", -1).trim();
 
 					if (IF_EXISTS(find))
 					{
@@ -362,7 +363,7 @@ public class Labeller extends Thread
 					/* 'nestle.pcx' GOTO label" */
 					String[] split3 = StringUtils.splitByWholeSeparator(VAL, "GOTO");
 					String find2 = split3[0];
-					find2 = StringUtils.replace(find2, "'", "", -1).trim();
+					find2 = Strings.CS.replace(find2, "'", "", -1).trim();
 
 					String localfilename2 = System.getProperty("user.dir") + java.io.File.separator + "labeller_files" + java.io.File.separator + prop.getSite() + java.io.File.separator + prop.getId() + java.io.File.separator + find2;
 					File localFile = new File(localfilename2);

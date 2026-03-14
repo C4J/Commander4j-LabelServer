@@ -18,6 +18,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.logging.log4j.Logger;
 
 import com.commander4j.util.JUtility;
@@ -127,11 +128,11 @@ public class LabellerCMDFile
 			while (result.contains(func))
 			{
 				functionFound = true;
-				
-				int functionNameStartPos = result.indexOf(func); 
-				String beforeFunction = result.substring(0, functionNameStartPos); 
+
+				int functionNameStartPos = result.indexOf(func);
+				String beforeFunction = result.substring(0, functionNameStartPos);
 				int functionNameEndPos = functionNameStartPos + func.length();
-				String stringAfterFunctionName = result.substring(functionNameEndPos); 
+				String stringAfterFunctionName = result.substring(functionNameEndPos);
 				int closingBracketPosition=getClosingBracketPosition(stringAfterFunctionName);
 				String allParameters = stringAfterFunctionName.substring(1, closingBracketPosition);
 
@@ -173,11 +174,11 @@ public class LabellerCMDFile
 
 			while (result.contains(func))
 			{
-				
+
 				functionFound = true;
-				
-				int functionNameStartPos = result.indexOf(func); 
-				String beforeFunction = result.substring(0, functionNameStartPos); 
+
+				int functionNameStartPos = result.indexOf(func);
+				String beforeFunction = result.substring(0, functionNameStartPos);
 				int functionNameEndPos = functionNameStartPos + func.length();
 				String stringAfterFunctionName = result.substring(functionNameEndPos);
 				int closingBracketPosition=getClosingBracketPosition(stringAfterFunctionName);
@@ -217,9 +218,9 @@ public class LabellerCMDFile
 
 			while (result.contains(func))
 			{
-				
+
 				functionFound = true;
-				
+
 				int functionNameStartPos = result.indexOf(func);
 				String beforeFunction = result.substring(0, functionNameStartPos);
 				int functionNameEndPos = functionNameStartPos + func.length();
@@ -231,7 +232,7 @@ public class LabellerCMDFile
 
 				String[] parameterArray = allParameters.split(",");
 
-				
+
 				DateFormat dateFormat = new SimpleDateFormat(parameterArray[0], Locale.ENGLISH);
 				Date date = new Date();
 				String outputDate = dateFormat.format(date);
@@ -239,18 +240,18 @@ public class LabellerCMDFile
 				result = beforeFunction + outputDate + afterFunction;
 
 			}
-			
+
 			func = "REPLACE";
 
 			while (result.contains(func))
 			{
-				
+
 				functionFound = true;
-				
+
 				int functionNameStartPos = result.indexOf(func);
 				String beforeFunction = result.substring(0, functionNameStartPos);
 				int functionNameEndPos = functionNameStartPos + func.length();
-				String stringAfterFunctionName = result.substring(functionNameEndPos); 
+				String stringAfterFunctionName = result.substring(functionNameEndPos);
 				int closingBracketPosition=getClosingBracketPosition(stringAfterFunctionName);
 				String allParameters = stringAfterFunctionName.substring(1, closingBracketPosition);
 
@@ -310,11 +311,11 @@ public class LabellerCMDFile
 			while (result.contains(func))
 			{
 				functionFound = true;
-				
-				int functionNameStartPos = result.indexOf(func); 
+
+				int functionNameStartPos = result.indexOf(func);
 				String beforeFunction = result.substring(0, functionNameStartPos);
 				int functionNameEndPos = functionNameStartPos + func.length();
-				String stringAfterFunctionName = result.substring(functionNameEndPos); 
+				String stringAfterFunctionName = result.substring(functionNameEndPos);
 				int closingBracketPosition=getClosingBracketPosition(stringAfterFunctionName);
 				String allParameters = stringAfterFunctionName.substring(1, closingBracketPosition);
 
@@ -378,14 +379,14 @@ public class LabellerCMDFile
 				}
 
 			}
-			
+
 			func = "CODE128SWITCHER";
 
 			while (result.contains(func))
 			{
-				
+
 				functionFound = true;
-				
+
 				int functionNameStartPos = result.indexOf(func);
 				String beforeFunction = result.substring(0, functionNameStartPos);
 				int functionNameEndPos = functionNameStartPos + func.length();
@@ -397,9 +398,9 @@ public class LabellerCMDFile
 				String[] parameterArray = allParameters.split(",");
 
 				String rawdata = parameterArray[0];
-				
+
 				Code128Switcher zplmodeswitcher = new Code128Switcher();
-				
+
 				String zpldata  = zplmodeswitcher.process(rawdata);
 
 				result = beforeFunction + zpldata + afterFunction;
@@ -407,10 +408,10 @@ public class LabellerCMDFile
 			}
 
 		}
-		
+
 		return result;
 	}
-	
+
 	public int getClosingBracketPosition(String stringAfterFunctionName)
 	{
 		String lookat="";
@@ -435,7 +436,7 @@ public class LabellerCMDFile
 		}
 		return closingBracketPosition;
 	}
-	
+
 
 	public String replaceVariables(String var)
 	{
@@ -446,7 +447,7 @@ public class LabellerCMDFile
 		while (iterator.hasNext())
 		{
 			Map.Entry<String, String> mentry = (Map.Entry<String, String>) iterator.next();
-			result = StringUtils.replaceOnce(result, mentry.getKey().toString(), mentry.getValue().toString().replace(",", "±"));
+			result = Strings.CS.replaceOnce(result, mentry.getKey().toString(), mentry.getValue().toString().replace(",", "±"));
 		}
 
 		if (var.equals(result) == false)
@@ -471,7 +472,7 @@ public class LabellerCMDFile
 			while (again)
 			{
 				beforeReplace = result;
-				result = StringUtils.replaceOnce(result, mentry.getKey().toString(), mentry.getValue().toString().toString().replace(",", "±"));
+				result =  Strings.CS.replaceOnce(result, mentry.getKey().toString(), mentry.getValue().toString().replace(",", "±"));
 				if (result.equals(beforeReplace))
 				{
 					again = false;
