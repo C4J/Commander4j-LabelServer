@@ -36,7 +36,7 @@ public class Labeller extends Thread
 	private LabellerCMDFile labellerCMDFile = new LabellerCMDFile();
 	private String commandFile = "";
 	private boolean requestPrint = false;
-	public static String version = "3.76";
+	public static String version = "3.80";
 
 	private File fileWrite;
 	private int waitRetries = 20;
@@ -111,10 +111,7 @@ public class Labeller extends Thread
 			/* ADD CODE HERE TO POLL FOLDERS FOR DATA */
 			File inputData = new File(prop.getInputPath() + prop.getInputFile());
 
-
 			requestPrint = inputData.exists();
-
-
 
 			/* PARSE DATA */
 
@@ -202,320 +199,326 @@ public class Labeller extends Thread
 		rx.successResponses.clear();
 		rx.failedResponses.clear();
 
-		labellerCMDFile.loadFile(prop, commandFile);
-
-		int exePosition = labellerCMDFile.getLinefromLabel("Initialise");
-
-		while ((requestPrint == true) && (connected == true) && (scriptError == false))
+		if (labellerCMDFile.loadFile(prop, commandFile))
 		{
 
-			/* Checking RX Thread */
-			if (rx.isAlive() == false)
+			int exePosition = labellerCMDFile.getLinefromLabel("Initialise");
+
+			while ((requestPrint == true) && (connected == true) && (scriptError == false))
 			{
-				logger.error("RX connection failure detected - aborting " + String.valueOf(rx.getStatus()) + ")");
-				connected = false;
-				scriptError = true;
-			}
-			else
-			{
-				if (rx.getStatus() != LabellerTCPIP_RX.status_RUNNING)
+
+				/* Checking RX Thread */
+				if (rx.isAlive() == false)
 				{
 					logger.error("RX connection failure detected - aborting " + String.valueOf(rx.getStatus()) + ")");
-					rx.shutdown();
 					connected = false;
 					scriptError = true;
 				}
-			}
-
-			/* Checking TX Thread */
-			if (tx.isAlive() == false)
-			{
-				logger.error("TX connection failure detected - aborting " + String.valueOf(tx.getStatus()) + ")");
-				tx.shutdown();
-				connected = false;
-				scriptError = true;
-			}
-			else
-			{
-				if (tx.getStatus() != LabellerTCPIP_RX.status_RUNNING)
+				else
 				{
-					logger.error("TX connection status error detected - aborting (" + String.valueOf(tx.getStatus()) + ")");
+					if (rx.getStatus() != LabellerTCPIP_RX.status_RUNNING)
+					{
+						logger.error("RX connection failure detected - aborting " + String.valueOf(rx.getStatus()) + ")");
+						rx.shutdown();
+						connected = false;
+						scriptError = true;
+					}
+				}
+
+				/* Checking TX Thread */
+				if (tx.isAlive() == false)
+				{
+					logger.error("TX connection failure detected - aborting " + String.valueOf(tx.getStatus()) + ")");
+					tx.shutdown();
 					connected = false;
 					scriptError = true;
 				}
-			}
-
-			if ((connected == true) && (scriptError == false))
-			{
-
-				LBL = labellerCMDFile.commandLines.get(exePosition).label;
-				CMD = labellerCMDFile.commandLines.get(exePosition).command;
-				VAL = labellerCMDFile.getValueAtLine(exePosition).replaceAll("~", "\"");
-
-				logger.debug("runScript :" + JUtility.padString(String.valueOf(exePosition + 1), false, 5, "0") + " - " + JUtility.padString(LBL, true, 18, " ") + JUtility.padString(CMD, true, 30, " ") + JUtility.padString(VAL, true, 50, " "));
-
-				switch (CMD)
+				else
 				{
-				case "SET_REMOTE_FOLDER":
-
-					String folder = labellerCMDFile.removeDelimitors(VAL);
-
-					if (folder.equals(""))
+					if (tx.getStatus() != LabellerTCPIP_RX.status_RUNNING)
 					{
-						folder = "/c0/";
+						logger.error("TX connection status error detected - aborting (" + String.valueOf(tx.getStatus()) + ")");
+						connected = false;
+						scriptError = true;
 					}
+				}
 
-					if (StringUtils.right(folder, 1).equals("/") == false)
+				if ((connected == true) && (scriptError == false))
+				{
+
+					LBL = labellerCMDFile.commandLines.get(exePosition).label;
+					CMD = labellerCMDFile.commandLines.get(exePosition).command;
+					VAL = labellerCMDFile.getValueAtLine(exePosition).replaceAll("~", "\"");
+
+					logger.debug("runScript :" + JUtility.padString(String.valueOf(exePosition + 1), false, 5, "0") + " - " + JUtility.padString(LBL, true, 18, " ") + JUtility.padString(CMD, true, 30, " ") + JUtility.padString(VAL, true, 50, " "));
+
+					switch (CMD)
 					{
-						folder = folder + "/";
-					}
+					case "SET_REMOTE_FOLDER":
 
-					if (StringUtils.left(folder, 1).equals("/") == false)
-					{
-						folder = "/" + folder;
-					}
-					defaultRemoteFolder = folder;
+						String folder = labellerCMDFile.removeDelimitors(VAL);
 
-					logger.info("SET_REMOTE_FOLDER [" + defaultRemoteFolder + "]");
-
-					break;
-				case "DB_QUERY":
-					DB_QUERY(VAL);
-					break;
-				case "MESSAGE_INFO":
-					tx.send("*MSG,info," + VAL + "<CR>");
-					checkSuccess();
-					break;
-				case "MESSAGE_ERROR":
-					tx.send("*MSG,error," + VAL + "<CR>");
-					checkSuccess();
-					break;
-				case "MESSAGE_WARN":
-					tx.send("*MSG,warning," + VAL + "<CR>");
-					checkSuccess();
-					break;
-				case "VARIABLE":
-					String variableDefinition = VAL;
-					String[] varArray = StringUtils.split(variableDefinition, "=");
-					labellerCMDFile.variables.put(varArray[0], labellerCMDFile.removeDelimitors(varArray[1]));
-					logger.debug("VARIABLE "+varArray[0]+" = ["+varArray[1]+"]");
-					break;
-				case "USER_INPUT":
-					String variableDefinition2 = VAL;
-					String[] varArray2 = StringUtils.split(labellerCMDFile.removeDelimitors(variableDefinition2), ",");
-					Scanner c = new Scanner(System.in);
-
-					String prompt = varArray2[0];
-					String defaultValue = varArray2[1];
-					String variableName = varArray2[2];
-					System.out.print(prompt + " : ");
-					String input = c.nextLine();
-
-					if (input.equals(""))
-					{
-						input = defaultValue;
-					}
-					labellerCMDFile.variables.put(variableName, input);
-
-					break;
-				case "EXIT":
-					requestPrint = false;
-					utils.pause(100);
-					break;
-				case "GOTO":
-					exePosition = labellerCMDFile.getLinefromLabel(VAL) - 1;
-					break;
-				case "IF":
-					String[] split1 = StringUtils.splitByWholeSeparator(VAL, "GOTO");
-					String criteria = split1[0];
-					String[] comparison = StringUtils.split(criteria, "=");
-					comparison[0] = Strings.CS.replace(comparison[0], "'", "", -1).trim();
-					comparison[0] = Strings.CS.replace(comparison[0], "(", "", -1).trim();
-
-					comparison[1] = Strings.CS.replace(comparison[1], "'", "", -1).trim();
-					comparison[1] = Strings.CS.replace(comparison[1], ")", "", -1).trim();
-
-					logger.debug("compare ["+comparison[0]+"] with ["+comparison[1]+"]");
-					if (comparison[0].equals(comparison[1]))
-					{
-						logger.debug("same");
-						String destination = split1[1].trim();
-						exePosition = labellerCMDFile.getLinefromLabel(destination) - 1;
-					}
-					else
-					{
-						logger.debug("different");
-					}
-					break;
-				case "IF REMOTE FILE EXISTS":
-					/* 'nestle.pcx' GOTO label" */
-					String[] split2 = StringUtils.splitByWholeSeparator(VAL, "GOTO");
-					String find = split2[0];
-					find = Strings.CS.replace(find, "'", "", -1).trim();
-
-					if (IF_EXISTS(find))
-					{
-						String destination = split2[1].trim();
-						exePosition = labellerCMDFile.getLinefromLabel(destination) - 1;
-					}
-					break;
-				case "IF REMOTE FILE NEWER":
-					/* 'nestle.pcx' GOTO label" */
-					String[] split3 = StringUtils.splitByWholeSeparator(VAL, "GOTO");
-					String find2 = split3[0];
-					find2 = Strings.CS.replace(find2, "'", "", -1).trim();
-
-					String localfilename2 = System.getProperty("user.dir") + java.io.File.separator + "labeller_files" + java.io.File.separator + prop.getSite() + java.io.File.separator + prop.getId() + java.io.File.separator + find2;
-					File localFile = new File(localfilename2);
-					if (localFile.exists())
-					{
-						Timestamp localTimeStamp = new Timestamp(localFile.lastModified());
-
-						if (IF_EXISTS(find2))
+						if (folder.equals(""))
 						{
-							Timestamp remoteTimestmp = REMOTE_FILE_DATETIME(find2);
+							folder = "/c0/";
+						}
 
-							if (remoteTimestmp.after(localTimeStamp))
+						if (StringUtils.right(folder, 1).equals("/") == false)
+						{
+							folder = folder + "/";
+						}
+
+						if (StringUtils.left(folder, 1).equals("/") == false)
+						{
+							folder = "/" + folder;
+						}
+						defaultRemoteFolder = folder;
+
+						logger.info("SET_REMOTE_FOLDER [" + defaultRemoteFolder + "]");
+
+						break;
+					case "DB_QUERY":
+						DB_QUERY(VAL);
+						break;
+					case "MESSAGE_INFO":
+						tx.send("*MSG,info," + VAL + "<CR>");
+						checkSuccess();
+						break;
+					case "MESSAGE_ERROR":
+						tx.send("*MSG,error," + VAL + "<CR>");
+						checkSuccess();
+						break;
+					case "MESSAGE_WARN":
+						tx.send("*MSG,warning," + VAL + "<CR>");
+						checkSuccess();
+						break;
+					case "VARIABLE":
+						String variableDefinition = VAL;
+						String[] varArray = StringUtils.split(variableDefinition, "=");
+						labellerCMDFile.variables.put(varArray[0], labellerCMDFile.removeDelimitors(varArray[1]));
+						logger.debug("VARIABLE " + varArray[0] + " = [" + varArray[1] + "]");
+						break;
+					case "USER_INPUT":
+						String variableDefinition2 = VAL;
+						String[] varArray2 = StringUtils.split(labellerCMDFile.removeDelimitors(variableDefinition2), ",");
+						Scanner c = new Scanner(System.in);
+
+						String prompt = varArray2[0];
+						String defaultValue = varArray2[1];
+						String variableName = varArray2[2];
+						System.out.print(prompt + " : ");
+						String input = c.nextLine();
+
+						if (input.equals(""))
+						{
+							input = defaultValue;
+						}
+						labellerCMDFile.variables.put(variableName, input);
+
+						break;
+					case "EXIT":
+						requestPrint = false;
+						utils.pause(100);
+						break;
+					case "GOTO":
+						exePosition = labellerCMDFile.getLinefromLabel(VAL) - 1;
+						break;
+					case "IF":
+						String[] split1 = StringUtils.splitByWholeSeparator(VAL, "GOTO");
+						String criteria = split1[0];
+						String[] comparison = StringUtils.split(criteria, "=");
+						comparison[0] = Strings.CS.replace(comparison[0], "'", "", -1).trim();
+						comparison[0] = Strings.CS.replace(comparison[0], "(", "", -1).trim();
+
+						comparison[1] = Strings.CS.replace(comparison[1], "'", "", -1).trim();
+						comparison[1] = Strings.CS.replace(comparison[1], ")", "", -1).trim();
+
+						logger.debug("compare [" + comparison[0] + "] with [" + comparison[1] + "]");
+						if (comparison[0].equals(comparison[1]))
+						{
+							logger.debug("same");
+							String destination = split1[1].trim();
+							exePosition = labellerCMDFile.getLinefromLabel(destination) - 1;
+						}
+						else
+						{
+							logger.debug("different");
+						}
+						break;
+					case "IF REMOTE FILE EXISTS":
+						/* 'nestle.pcx' GOTO label" */
+						String[] split2 = StringUtils.splitByWholeSeparator(VAL, "GOTO");
+						String find = split2[0];
+						find = Strings.CS.replace(find, "'", "", -1).trim();
+
+						if (IF_EXISTS(find))
+						{
+							String destination = split2[1].trim();
+							exePosition = labellerCMDFile.getLinefromLabel(destination) - 1;
+						}
+						break;
+					case "IF REMOTE FILE NEWER":
+						/* 'nestle.pcx' GOTO label" */
+						String[] split3 = StringUtils.splitByWholeSeparator(VAL, "GOTO");
+						String find2 = split3[0];
+						find2 = Strings.CS.replace(find2, "'", "", -1).trim();
+
+						String localfilename2 = System.getProperty("user.dir") + java.io.File.separator + "labeller_files" + java.io.File.separator + prop.getSite() + java.io.File.separator + prop.getId() + java.io.File.separator + find2;
+						File localFile = new File(localfilename2);
+						if (localFile.exists())
+						{
+							Timestamp localTimeStamp = new Timestamp(localFile.lastModified());
+
+							if (IF_EXISTS(find2))
 							{
-								logger.info("Local  " + find2 + " " + localTimeStamp.toString());
-								logger.info("Remote " + find2 + " " + remoteTimestmp.toString() + " NEWER");
-								logger.info("");
-								String destination = split3[1].trim();
-								exePosition = labellerCMDFile.getLinefromLabel(destination) - 1;
-							}
-							else
-							{
-								logger.info("Local  " + find2 + " " + localTimeStamp.toString() + " NEWER");
-								logger.info("Remote " + find2 + " " + remoteTimestmp.toString());
-								logger.info("");
+								Timestamp remoteTimestmp = REMOTE_FILE_DATETIME(find2);
+
+								if (remoteTimestmp.after(localTimeStamp))
+								{
+									logger.info("Local  " + find2 + " " + localTimeStamp.toString());
+									logger.info("Remote " + find2 + " " + remoteTimestmp.toString() + " NEWER");
+									logger.info("");
+									String destination = split3[1].trim();
+									exePosition = labellerCMDFile.getLinefromLabel(destination) - 1;
+								}
+								else
+								{
+									logger.info("Local  " + find2 + " " + localTimeStamp.toString() + " NEWER");
+									logger.info("Remote " + find2 + " " + remoteTimestmp.toString());
+									logger.info("");
+								}
 							}
 						}
+						localFile = null;
+						break;
+					case "PAUSE":
+						utils.pause(Integer.valueOf(VAL));
+						break;
+					case "ECHO":
+						System.out.println(VAL);
+						break;
+					case "WAIT_FOR_REPLY":
+						WAIT_FOR_REPLY();
+						break;
+					case "CHECK_SUCCESS":
+						CHECK_SUCCESS();
+						break;
+					case "SETTIME":
+						// waitForReply();
+						Timestamp d = JUtility.getSQLDateTime();
+						// dd-MM-yyyy:HH:mm:SS
+						SimpleDateFormat df = new SimpleDateFormat("yyyyMMddHHmmss");
+						String ds = df.format(d);
+						tx.send("*SETTIME," + ds + "<CR>");
+						// checkSuccess();
+						break;
+					case "DELETE_FILE":
+						DELETE_FILE(VAL);
+						break;
+					case "ARCHIVE_FILENAMES1":
+						ARCHIVE_FILENAMES1(VAL);
+						break;
+					case "DIR_REMOTE":
+						if (DIR_REMOTE(VAL) == false)
+						{
+							scriptError = true;
+						}
+						break;
+					case "DIR_REMOTE_FILTER":
+						if (DIR_REMOTE_FILTER(VAL) == false)
+						{
+							scriptError = true;
+						}
+						break;
+					case "STRING_DELIMITER":
+						DEL = VAL;
+						labellerCMDFile.setDelimiter(DEL);
+						break;
+					case "SEND_EOL":
+						EOL = utils.encodeControlChars(VAL);
+						break;
+					case "RESPONSE_EOL":
+						rx.setResponseEOL(VAL);
+						break;
+					case "SEND":
+						rx.clearQueue();
+						tx.send(utils.encodeControlChars(VAL) + EOL);
+						utils.pause(100);
+						break;
+					case "IGNORE_RESPONSE":
+						rx.ignoredResponses.add(VAL);
+						break;
+					case "FAIL_RESPONSE":
+						rx.failedResponses.add(VAL);
+						break;
+					case "SUCCESS_RESPONSE":
+						rx.successResponses.add(VAL);
+						break;
+					case "LOCAL_DELETE_FILE":
+						String localfilename = System.getProperty("user.dir") + java.io.File.separator + "labeller_files" + java.io.File.separator + prop.getSite() + java.io.File.separator + prop.getId() + java.io.File.separator + VAL;
+						logger.info("Local Delete  [" + localfilename + "]");
+						File fileDelete = new File(localfilename);
+						FileUtils.deleteQuietly(fileDelete);
+						fileDelete = null;
+						break;
+					case "FILE_DEFINE":
+						String writefilename = System.getProperty("user.dir") + java.io.File.separator + "labeller_files" + java.io.File.separator + prop.getSite() + java.io.File.separator + prop.getId() + java.io.File.separator + VAL;
+						logger.info("File Defined as  [" + writefilename + "]");
+						fileWrite = new File(writefilename);
+						if (FileUtils.deleteQuietly(fileWrite))
+						{
+							logger.info("Existing file deleted  [" + writefilename + "]");
+						}
+						break;
+					case "FILE_WRITE":
+						File writePath = new File(System.getProperty("user.dir") + java.io.File.separator + "labeller_files" + java.io.File.separator + prop.getSite() + java.io.File.separator + prop.getId());
+						try
+						{
+							FileUtils.forceMkdir(writePath);
+						}
+						catch (IOException e)
+						{
+							logger.error(e.getMessage());
+						}
+						try
+						{
+							logger.info("Write to file [" + fileWrite.getName() + "] <-- [" + VAL + "]");
+							FileUtils.writeStringToFile(fileWrite, utils.encodeControlChars(VAL), "UTF-8", true);
+						}
+						catch (IOException e)
+						{
+							logger.error("ERROR [" + e.getMessage() + "]");
+							scriptError = true;
+						}
+						break;
+					case "SEND_FILE_INTELHEX":
+						if (SEND_FILE_INTELHEX(VAL) == false)
+						{
+							scriptError = true;
+						}
+						break;
+					case "RECEIVE_FILE_INTELHEX":
+						if (RECEIVE_FILE_INTELHEX(VAL, false) == false)
+						{
+							scriptError = true;
+						}
+						break;
+					case "BACKUP_REMOTE":
+						if (BACKUP_REMOTE(VAL) == false)
+						{
+							scriptError = true;
+						}
+						break;
+					default:
 					}
-					localFile = null;
-					break;
-				case "PAUSE":
-					utils.pause(Integer.valueOf(VAL));
-					break;
-				case "ECHO":
-					System.out.println(VAL);
-					break;
-				case "WAIT_FOR_REPLY":
-					WAIT_FOR_REPLY();
-					break;
-				case "CHECK_SUCCESS":
-					CHECK_SUCCESS();
-					break;
-				case "SETTIME":
-					// waitForReply();
-					Timestamp d = JUtility.getSQLDateTime();
-					// dd-MM-yyyy:HH:mm:SS
-					SimpleDateFormat df = new SimpleDateFormat("yyyyMMddHHmmss");
-					String ds = df.format(d);
-					tx.send("*SETTIME," + ds + "<CR>");
-					// checkSuccess();
-					break;
-				case "DELETE_FILE":
-					DELETE_FILE(VAL);
-					break;
-				case "ARCHIVE_FILENAMES1":
-					ARCHIVE_FILENAMES1(VAL);
-					break;
-				case "DIR_REMOTE":
-					if (DIR_REMOTE(VAL) == false)
-					{
-						scriptError = true;
-					}
-					break;
-				case "DIR_REMOTE_FILTER":
-					if (DIR_REMOTE_FILTER(VAL) == false)
-					{
-						scriptError = true;
-					}
-					break;
-				case "STRING_DELIMITER":
-					DEL = VAL;
-					labellerCMDFile.setDelimiter(DEL);
-					break;
-				case "SEND_EOL":
-					EOL = utils.encodeControlChars(VAL);
-					break;
-				case "RESPONSE_EOL":
-					rx.setResponseEOL(VAL);
-					break;
-				case "SEND":
-					rx.clearQueue();
-					tx.send(utils.encodeControlChars(VAL) + EOL);
-					utils.pause(100);
-					break;
-				case "IGNORE_RESPONSE":
-					rx.ignoredResponses.add(VAL);
-					break;
-				case "FAIL_RESPONSE":
-					rx.failedResponses.add(VAL);
-					break;
-				case "SUCCESS_RESPONSE":
-					rx.successResponses.add(VAL);
-					break;
-				case "LOCAL_DELETE_FILE":
-					String localfilename = System.getProperty("user.dir") + java.io.File.separator + "labeller_files" + java.io.File.separator + prop.getSite() + java.io.File.separator + prop.getId() + java.io.File.separator + VAL;
-					logger.info("Local Delete  [" + localfilename + "]");
-					File fileDelete = new File(localfilename);
-					FileUtils.deleteQuietly(fileDelete);
-					fileDelete = null;
-					break;
-				case "FILE_DEFINE":
-					String writefilename = System.getProperty("user.dir") + java.io.File.separator + "labeller_files" + java.io.File.separator + prop.getSite() + java.io.File.separator + prop.getId() + java.io.File.separator + VAL;
-					logger.info("File Defined as  [" + writefilename + "]");
-					fileWrite = new File(writefilename);
-					if (FileUtils.deleteQuietly(fileWrite))
-					{
-						logger.info("Existing file deleted  [" + writefilename + "]");
-					}
-					break;
-				case "FILE_WRITE":
-					File writePath = new File(System.getProperty("user.dir") + java.io.File.separator + "labeller_files" + java.io.File.separator + prop.getSite() + java.io.File.separator + prop.getId());
-					try
-					{
-						FileUtils.forceMkdir(writePath);
-					}
-					catch (IOException e)
-					{
-						logger.error(e.getMessage());
-					}
-					try
-					{
-						logger.info("Write to file [" + fileWrite.getName() + "] <-- [" + VAL + "]");
-						FileUtils.writeStringToFile(fileWrite, utils.encodeControlChars(VAL), "UTF-8", true);
-					}
-					catch (IOException e)
-					{
-						logger.error("ERROR [" + e.getMessage() + "]");
-						scriptError = true;
-					}
-					break;
-				case "SEND_FILE_INTELHEX":
-					if (SEND_FILE_INTELHEX(VAL) == false)
-					{
-						scriptError = true;
-					}
-					break;
-				case "RECEIVE_FILE_INTELHEX":
-					if (RECEIVE_FILE_INTELHEX(VAL, false) == false)
-					{
-						scriptError = true;
-					}
-					break;
-				case "BACKUP_REMOTE":
-					if (BACKUP_REMOTE(VAL) == false)
-					{
-						scriptError = true;
-					}
-					break;
-				default:
-				}
 
-				exePosition++;
+					exePosition++;
+				}
 			}
+		}
+		else
+		{
+			scriptError = true;
 		}
 		return true;
 	}

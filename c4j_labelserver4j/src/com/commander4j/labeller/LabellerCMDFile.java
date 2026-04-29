@@ -526,7 +526,7 @@ public class LabellerCMDFile
 		}
 		catch (IOException e)
 		{
-			e.printStackTrace();
+			System.out.println("Reading file ["+filename +"] "+e.getMessage());
 			result = false;
 		}
 		System.out.println("");
