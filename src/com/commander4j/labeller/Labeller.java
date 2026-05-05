@@ -36,7 +36,7 @@ public class Labeller extends Thread
 	private LabellerCMDFile labellerCMDFile = new LabellerCMDFile();
 	private String commandFile = "";
 	private boolean requestPrint = false;
-	public static String version = "4.00";
+	public static String version = "4.01";
 
 	private File fileWrite;
 	private int waitRetries = 20;
