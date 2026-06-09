@@ -117,296 +117,252 @@ public class LabellerCMDFile
 		String result = VAL;
 		Logger logger = org.apache.logging.log4j.LogManager.getLogger((LabellerCMDFile.class));
 
-		boolean functionFound = true;
+		// Functions are resolved innermost-first: on each pass we locate the function
+		// call with the highest start index (which is provably the innermost - no other
+		// call can begin after it yet still contain it), evaluate it, and splice the
+		// value back. This lets a child's result feed its parent, e.g.
+		// REPLACE(SUBSTRING(...),a,b) or CODE128SWITCHER(PADLEFT(...)...).
+		String[] functionNames = new String[]
+		{ "SUBSTRING", "EXTRACT_DATE", "TIMESTAMP", "REPLACE", "PADLEFT", "CODE128SWITCHER" };
 
-		while (functionFound)
+		int safety = 1000; // termination guard against a value that re-introduces a call
+
+		while (safety-- > 0)
 		{
-
-			functionFound = false;
-			String func = "SUBSTRING";
-
-			while (result.contains(func))
+			// Find the innermost call = the registered "NAME(" with the largest start index.
+			int callStart = -1;
+			String callName = "";
+			for (String name : functionNames)
 			{
-				functionFound = true;
+				int pos = result.lastIndexOf(name + "(");
+				if (pos > callStart)
+				{
+					callStart = pos;
+					callName = name;
+				}
+			}
 
-				int functionNameStartPos = result.indexOf(func);
-				String beforeFunction = result.substring(0, functionNameStartPos);
-				int functionNameEndPos = functionNameStartPos + func.length();
-				String stringAfterFunctionName = result.substring(functionNameEndPos);
-				int closingBracketPosition=getClosingBracketPosition(stringAfterFunctionName);
-				String allParameters = stringAfterFunctionName.substring(1, closingBracketPosition);
+			if (callStart < 0)
+			{
+				break; // no function calls remain
+			}
 
-				String afterFunction = stringAfterFunctionName.substring(closingBracketPosition + 1);
+			String beforeFunction = result.substring(0, callStart);
+			String stringAfterFunctionName = result.substring(callStart + callName.length());
+			int closingBracketPosition = getClosingBracketPosition(stringAfterFunctionName);
 
-				String[] parameterArray = allParameters.split(",");
+			if (closingBracketPosition <= 0)
+			{
+				logger.warn("Unterminated function call [" + callName + "(] in [" + result + "] - leaving literal");
+				break;
+			}
 
+			String allParameters = stringAfterFunctionName.substring(1, closingBracketPosition);
+			String afterFunction = stringAfterFunctionName.substring(closingBracketPosition + 1);
+			String[] parameterArray = allParameters.split(",");
+
+			String value = evaluateFunction(callName, parameterArray);
+
+			// Escape commas in the result so a parent function's split(",") treats this
+			// whole value as a single argument. getValueAtLine() restores them via
+			// result.replace("±", ",") after execFunctions returns.
+			value = value.replace(",", "±");
+
+			result = beforeFunction + value + afterFunction;
+		}
+
+		return result;
+	}
+
+	private String evaluateFunction(String functionName, String[] parameterArray)
+	{
+		String result = "";
+		Logger logger = org.apache.logging.log4j.LogManager.getLogger((LabellerCMDFile.class));
+
+		switch (functionName)
+		{
+		case "SUBSTRING":
+			// SUBSTRING(string, start, length) - returns 'length' characters starting
+			// at position 'start', where 'start' is 1-based (the first character is 1,
+			// not 0 as in Java). Bounds are clamped so data shorter than requested
+			// returns what is available rather than throwing an error onto the label.
+			try
+			{
 				String inputString = parameterArray[0];
+				int startIndex = Integer.parseInt(parameterArray[1]) - 1; // 1-based -> 0-based
+				int length = Integer.parseInt(parameterArray[2]);
 
-				String inputStartPos = parameterArray[1];
-
-				int startIndex = Integer.parseInt(inputStartPos);
-
-				String inputEndPos = parameterArray[2];
-
-				int endIndex = Integer.parseInt(inputEndPos);
-
-				try
+				if (startIndex < 0)
 				{
-
-					String substr = "";
-
-					// substr = inputString.substring(startIndex, endIndex);
-					substr = inputString.substring(startIndex, startIndex + endIndex - 1);
-
-					result = beforeFunction + substr + afterFunction;
-
-					logger.debug("SUBSTRING: " + result);
-
+					logger.warn("SUBSTRING start position [" + parameterArray[1] + "] is less than 1 - treating as 1 (first character)");
+					startIndex = 0;
 				}
-				catch (Exception ex)
+				if (startIndex > inputString.length())
 				{
-					result = "error " + ex.getMessage();
+					startIndex = inputString.length();
 				}
 
+				int endIndex = startIndex + length;
+				if (endIndex > inputString.length())
+				{
+					endIndex = inputString.length();
+				}
+				if (endIndex < startIndex)
+				{
+					endIndex = startIndex;
+				}
+
+				result = inputString.substring(startIndex, endIndex);
+				logger.debug("SUBSTRING: " + result);
 			}
-
-			func = "EXTRACT_DATE";
-
-			while (result.contains(func))
+			catch (Exception ex)
 			{
+				result = "error " + ex.getMessage();
+			}
+			break;
 
-				functionFound = true;
-
-				int functionNameStartPos = result.indexOf(func);
-				String beforeFunction = result.substring(0, functionNameStartPos);
-				int functionNameEndPos = functionNameStartPos + func.length();
-				String stringAfterFunctionName = result.substring(functionNameEndPos);
-				int closingBracketPosition=getClosingBracketPosition(stringAfterFunctionName);
-				String allParameters = stringAfterFunctionName.substring(1, closingBracketPosition);
-
-				String afterFunction = stringAfterFunctionName.substring(closingBracketPosition + 1);
-
-				String[] parameterArray = allParameters.split(",");
-
+		case "EXTRACT_DATE":
+			try
+			{
 				String inputDateString = parameterArray[0];
-
 				DateFormat inputDateFormat = new SimpleDateFormat(parameterArray[1], Locale.ENGLISH);
-
-				try
-				{
-					Date inputDate;
-
-					inputDate = inputDateFormat.parse(inputDateString);
-
-					DateFormat df = new SimpleDateFormat(parameterArray[2]);
-
-					String outputDate = df.format(inputDate);
-
-					result = beforeFunction + outputDate + afterFunction;
-
-					logger.debug("EXTRACT_DATE: " + result);
-
-				}
-				catch (Exception ex)
-				{
-					result = "error " + ex.getMessage();
-				}
-
+				Date inputDate = inputDateFormat.parse(inputDateString);
+				DateFormat df = new SimpleDateFormat(parameterArray[2]);
+				result = df.format(inputDate);
+				logger.debug("EXTRACT_DATE: " + result);
 			}
-
-			func = "TIMESTAMP";
-
-			while (result.contains(func))
+			catch (Exception ex)
 			{
+				result = "error " + ex.getMessage();
+			}
+			break;
 
-				functionFound = true;
-
-				int functionNameStartPos = result.indexOf(func);
-				String beforeFunction = result.substring(0, functionNameStartPos);
-				int functionNameEndPos = functionNameStartPos + func.length();
-				String stringAfterFunctionName = result.substring(functionNameEndPos);
-				int closingBracketPosition = stringAfterFunctionName.indexOf(")");
-				String allParameters = stringAfterFunctionName.substring(1, closingBracketPosition);
-
-				String afterFunction = stringAfterFunctionName.substring(closingBracketPosition + 1);
-
-				String[] parameterArray = allParameters.split(",");
-
-
+		case "TIMESTAMP":
+			try
+			{
 				DateFormat dateFormat = new SimpleDateFormat(parameterArray[0], Locale.ENGLISH);
 				Date date = new Date();
-				String outputDate = dateFormat.format(date);
+				result = dateFormat.format(date);
+			}
+			catch (Exception ex)
+			{
+				result = "error " + ex.getMessage();
+			}
+			break;
 
-				result = beforeFunction + outputDate + afterFunction;
+		case "REPLACE":
+			String inputStringR = "";
+			String findString = "";
+			String replaceString = "";
 
+			try
+			{
+				inputStringR = parameterArray[0];
+			}
+			catch (Exception ex)
+			{
+				inputStringR = "";
 			}
 
-			func = "REPLACE";
-
-			while (result.contains(func))
+			try
 			{
-
-				functionFound = true;
-
-				int functionNameStartPos = result.indexOf(func);
-				String beforeFunction = result.substring(0, functionNameStartPos);
-				int functionNameEndPos = functionNameStartPos + func.length();
-				String stringAfterFunctionName = result.substring(functionNameEndPos);
-				int closingBracketPosition=getClosingBracketPosition(stringAfterFunctionName);
-				String allParameters = stringAfterFunctionName.substring(1, closingBracketPosition);
-
-				String afterFunction = stringAfterFunctionName.substring(closingBracketPosition + 1);
-
-				String[] parameterArray = allParameters.split(",");
-
-				String inputString = "";
-				String findString = "";
-				String replaceString = "";
-
-				try
-				{
-					inputString = parameterArray[0];
-				}
-				catch (Exception ex)
-				{
-					inputString = "";
-				}
-
-				try
-				{
-					findString = parameterArray[1];
-				}
-				catch (Exception ex)
-				{
-					findString = "";
-				}
-
-				try
-				{
-					replaceString = parameterArray[2];
-				}
-				catch (Exception ex)
-				{
-					replaceString = "";
-				}
-
-				try
-				{
-					String outputString = inputString.replaceAll(findString, replaceString);
-
-					result = beforeFunction + outputString + afterFunction;
-
-					logger.debug("REPLACE: " + result);
-
-				}
-				catch (Exception ex)
-				{
-					result = "error " + ex.getMessage();
-				}
-
+				findString = parameterArray[1];
+			}
+			catch (Exception ex)
+			{
+				findString = "";
 			}
 
-			func = "PADLEFT";
-
-			while (result.contains(func))
+			try
 			{
-				functionFound = true;
-
-				int functionNameStartPos = result.indexOf(func);
-				String beforeFunction = result.substring(0, functionNameStartPos);
-				int functionNameEndPos = functionNameStartPos + func.length();
-				String stringAfterFunctionName = result.substring(functionNameEndPos);
-				int closingBracketPosition=getClosingBracketPosition(stringAfterFunctionName);
-				String allParameters = stringAfterFunctionName.substring(1, closingBracketPosition);
-
-				String afterFunction = stringAfterFunctionName.substring(closingBracketPosition + 1);
-
-				String[] parameterArray = allParameters.split(",");
-
-				String inputString = "";
-				String padSize = "";
-				String padChar = "";
-
-				try
-				{
-					inputString = parameterArray[0];
-				}
-				catch (Exception ex)
-				{
-					inputString = "";
-				}
-
-				try
-				{
-					padSize = parameterArray[1];
-				}
-				catch (Exception ex)
-				{
-					padSize = String.valueOf(inputString.length()).trim();
-				}
-
-				try
-				{
-					padChar = parameterArray[2];
-				}
-				catch (Exception ex)
-				{
-					padChar = "";
-				}
-
-				try
-				{
-					int padS = Integer.valueOf(padSize);
-
-					while (inputString.length() < padS)
-					{
-						inputString = padChar + inputString;
-					}
-
-					if (inputString.length() > padS)
-					{
-						inputString = inputString.substring(inputString.length() - padS);
-					}
-
-					result = beforeFunction + inputString + afterFunction;
-
-					logger.debug("PADLEFT : " + result);
-
-				}
-				catch (Exception ex)
-				{
-					result = "error " + ex.getMessage();
-				}
-
+				replaceString = parameterArray[2];
+			}
+			catch (Exception ex)
+			{
+				replaceString = "";
 			}
 
-			func = "CODE128SWITCHER";
-
-			while (result.contains(func))
+			try
 			{
+				result = inputStringR.replaceAll(findString, replaceString);
+				logger.debug("REPLACE: " + result);
+			}
+			catch (Exception ex)
+			{
+				result = "error " + ex.getMessage();
+			}
+			break;
 
-				functionFound = true;
+		case "PADLEFT":
+			String inputString = "";
+			String padSize = "";
+			String padChar = "";
 
-				int functionNameStartPos = result.indexOf(func);
-				String beforeFunction = result.substring(0, functionNameStartPos);
-				int functionNameEndPos = functionNameStartPos + func.length();
-				String stringAfterFunctionName = result.substring(functionNameEndPos);
-				int closingBracketPosition=getClosingBracketPosition(stringAfterFunctionName);
-				String allParameters = stringAfterFunctionName.substring(1, closingBracketPosition);
-				String afterFunction = stringAfterFunctionName.substring(closingBracketPosition + 1);
+			try
+			{
+				inputString = parameterArray[0];
+			}
+			catch (Exception ex)
+			{
+				inputString = "";
+			}
 
-				String[] parameterArray = allParameters.split(",");
+			try
+			{
+				padSize = parameterArray[1];
+			}
+			catch (Exception ex)
+			{
+				padSize = String.valueOf(inputString.length()).trim();
+			}
 
+			try
+			{
+				padChar = parameterArray[2];
+			}
+			catch (Exception ex)
+			{
+				padChar = "";
+			}
+
+			try
+			{
+				int padS = Integer.valueOf(padSize);
+
+				while (inputString.length() < padS)
+				{
+					inputString = padChar + inputString;
+				}
+
+				if (inputString.length() > padS)
+				{
+					inputString = inputString.substring(inputString.length() - padS);
+				}
+
+				result = inputString;
+				logger.debug("PADLEFT : " + result);
+			}
+			catch (Exception ex)
+			{
+				result = "error " + ex.getMessage();
+			}
+			break;
+
+		case "CODE128SWITCHER":
+			try
+			{
 				String rawdata = parameterArray[0];
-
 				Code128Switcher zplmodeswitcher = new Code128Switcher();
-
-				String zpldata  = zplmodeswitcher.process(rawdata);
-
-				result = beforeFunction + zpldata + afterFunction;
-
+				result = zplmodeswitcher.process(rawdata);
 			}
+			catch (Exception ex)
+			{
+				result = "error " + ex.getMessage();
+			}
+			break;
 
+		default:
+			result = "";
 		}
 
 		return result;
