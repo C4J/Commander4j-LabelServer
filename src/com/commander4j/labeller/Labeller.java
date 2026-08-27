@@ -31,12 +31,12 @@ public class Labeller extends Thread
 	private volatile boolean shutdown = false;
 	private LabellerTCPIP_RX rx;
 	private LabellerTCPIP_TX tx;
-	private boolean connected = false;
+	private volatile boolean connected = false;
 	private LabellerUtility utils = new LabellerUtility();
 	private LabellerCMDFile labellerCMDFile = new LabellerCMDFile();
 	private String commandFile = "";
 	private boolean requestPrint = false;
-	public static String version = "4.02";
+	public static String version = "4.03";
 
 	private File fileWrite;
 	private int waitRetries = 20;
@@ -49,6 +49,18 @@ public class Labeller extends Thread
 	{
 
 		requestPrint = true;
+	}
+
+	/** Read-only accessor for the web status endpoint. */
+	public LabellerProperties getLabellerProperties()
+	{
+		return prop;
+	}
+
+	/** True while the TCP/IP session to this labeller is up. Read by the web status endpoint. */
+	public boolean isConnected()
+	{
+		return connected;
 	}
 
 	public boolean requestRunning()

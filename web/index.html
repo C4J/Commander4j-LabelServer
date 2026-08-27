@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<!-- Live log viewer for LabelServer4j.
+
+     Loads the recent backlog via /api/log/tail, then follows new lines via the /events/log
+     SSE stream. Lines are kept in a client-side buffer and re-rendered whenever a filter
+     changes, so picking a labeller shows its history too and not just what arrives next.
+
+     Note: a few lines written between the backlog fetch and the SSE connecting may not
+     appear in this view — acceptable for a log tail. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>LabelServer4j — Log</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 1.25rem;
+      color: #222; background: #f5f6f8;
+    }
+    header { display: flex; align-items: baseline; gap: .75rem; flex-wrap: wrap; margin-bottom: .75rem; }
+    h1 { font-size: 1.25rem; margin: 0; }
+    .sub { font-size: .85rem; color: #666; }
+
+    .labellers { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .75rem; }
+    .chip {
+      display: inline-flex; align-items: center; gap: .35rem; cursor: pointer;
+      border: 1px solid #ccd0d6; background: #fff; border-radius: 999px;
+      padding: .22rem .7rem; font-size: .8rem; user-select: none;
+    }
+    .chip:hover { border-color: #8a9099; }
+    .chip.sel { background: #1f4e8c; border-color: #1f4e8c; color: #fff; }
+    .lamp { width: .55rem; height: .55rem; border-radius: 50%; background: #b8bcc2; flex: none; }
+    .lamp.up { background: #35a13a; }
+    .lamp.down { background: #c9342b; }
+    .lamp.idle { background: #d99b28; }
+
+    .controls { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-bottom: .6rem; font-size: .85rem; }
+    .controls input[type=search] { padding: .3rem .5rem; border: 1px solid #ccd0d6; border-radius: 4px; min-width: 15rem; font-size: .85rem; }
+    .controls select { padding: .28rem .4rem; border: 1px solid #ccd0d6; border-radius: 4px; font-size: .85rem; }
+    .controls label { color: #555; display: inline-flex; align-items: center; gap: .3rem; }
+    button { font-size: .85rem; padding: .3rem .7rem; border: 1px solid #ccd0d6; background: #fff; border-radius: 4px; cursor: pointer; }
+    button:hover { border-color: #8a9099; }
+
+    #log {
+      background: #1e1e1e; color: #d6d6d6; font-family: Menlo, Consolas, monospace;
+      font-size: .82rem; line-height: 1.45; padding: .75rem; border-radius: 4px;
+      height: 66vh; overflow-y: auto; white-space: pre-wrap; word-break: break-word;
+    }
+    #log .warn { color: #e8c06a; }
+    #log .error { color: #f08a7a; }
+    #log .thread { color: #7fb2e5; }
+    #log .rx { color: #6fc48a; }
+    #log .tx { color: #c99ae0; }
+    #log .ts { color: #7a7a7a; }
+
+    footer { margin-top: .5rem; font-size: .8rem; color: #666; display: flex; gap: 1rem; flex-wrap: wrap; }
+    #conn.ok { color: #2a7d20; }
+    #conn.bad { color: #b00; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>LabelServer4j — Log</h1>
+    <span class="sub" id="siteInfo"></span>
+  </header>
+
+  <div class="labellers" id="labellers"></div>
+
+  <div class="controls">
+    <input type="search" id="search" placeholder="Filter text (substring, case-insensitive)"/>
+    <select id="level">
+      <option value="ALL">All levels</option>
+      <option value="INFO">Info and above</option>
+      <option value="WARN">Warnings and errors</option>
+      <option value="ERROR">Errors only</option>
+    </select>
+    <label><input type="checkbox" id="follow" checked/> Auto-scroll</label>
+    <button id="clear" type="button">Clear</button>
+    <span id="shown" class="sub"></span>
+  </div>
+
+  <div id="log"></div>
+
+  <footer>
+    <span id="conn"></span>
+    <span id="hint">Selecting a labeller also shows its RX and TX traffic.</span>
+  </footer>
+
+  <script>
+  (function () {
+    'use strict';
+
+    var MAX_LINES = 5000;          // client-side buffer cap
+    var STATUS_INTERVAL_MS = 5000; // how often the labeller lamps refresh
+
+    var logEl = document.getElementById('log');
+    var followEl = document.getElementById('follow');
+    var searchEl = document.getElementById('search');
+    var levelEl = document.getElementById('level');
+    var connEl = document.getElementById('conn');
+    var shownEl = document.getElementById('shown');
+    var chipsEl = document.getElementById('labellers');
+    var siteEl = document.getElementById('siteInfo');
+
+    var buffer = [];            // parsed lines, oldest first
+    var selected = null;        // labeller id, or null for "All"
+    var levelRank = { TRACE: 0, DEBUG: 1, INFO: 2, WARN: 3, ERROR: 4, FATAL: 5 };
+
+    // "2026-08-19 12:43:29 INFO  [BUK_LINE3 RX] message"
+    var LINE_RE = /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+(\w+)\s+\[([^\]]*)\]\s?([\s\S]*)$/;
+
+    function parse(raw) {
+      var m = LINE_RE.exec(raw);
+      if (!m) {
+        // Stack traces and anything not matching the pattern: keep it, attribute it to
+        // nothing, and show it under "All" only.
+        return { raw: raw, ts: '', level: '', thread: '', msg: raw };
+      }
+      return { raw: raw, ts: m[1], level: m[2].toUpperCase(), thread: m[3], msg: m[4] };
+    }
+
+    // A labeller's own thread is named for its id; its comms threads are "<id> RX" / "<id> TX".
+    function belongsTo(entry, id) {
+      return entry.thread === id || entry.thread.indexOf(id + ' ') === 0;
+    }
+
+    function threadClass(entry) {
+      if (/ RX$/.test(entry.thread)) return 'rx';
+      if (/ TX$/.test(entry.thread)) return 'tx';
+      return 'thread';
+    }
+
+    function matches(entry) {
+      if (selected !== null && !belongsTo(entry, selected)) return false;
+
+      var want = levelEl.value;
+      if (want !== 'ALL') {
+        var r = levelRank[entry.level];
+        if (r === undefined || r < levelRank[want]) return false;
+      }
+
+      var text = searchEl.value.trim().toLowerCase();
+      if (text !== '' && entry.raw.toLowerCase().indexOf(text) < 0) return false;
+
+      return true;
+    }
+
+    function rowFor(entry) {
+      var div = document.createElement('div');
+      if (entry.level === 'ERROR' || entry.level === 'FATAL') div.className = 'error';
+      else if (entry.level === 'WARN') div.className = 'warn';
+
+      if (!entry.thread) {
+        div.textContent = entry.raw;
+        return div;
+      }
+
+      var ts = document.createElement('span');
+      ts.className = 'ts';
+      ts.textContent = entry.ts + ' ' + entry.level + ' ';
+      div.appendChild(ts);
+
+      var th = document.createElement('span');
+      th.className = threadClass(entry);
+      th.textContent = '[' + entry.thread + '] ';
+      div.appendChild(th);
+
+      div.appendChild(document.createTextNode(entry.msg));
+      return div;
+    }
+
+    function atBottom() {
+      return logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 40;
+    }
+
+    function render() {
+      var frag = document.createDocumentFragment();
+      var count = 0;
+      for (var i = 0; i < buffer.length; i++) {
+        if (matches(buffer[i])) { frag.appendChild(rowFor(buffer[i])); count++; }
+      }
+      logEl.textContent = '';
+      logEl.appendChild(frag);
+      shownEl.textContent = count + ' of ' + buffer.length + ' lines';
+      if (followEl.checked) logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function append(raw) {
+      var entry = parse(raw);
+      buffer.push(entry);
+      if (buffer.length > MAX_LINES) buffer.shift();
+
+      if (!matches(entry)) {
+        // Line is filtered out, but the buffer still grew: keep the counter honest.
+        shownEl.textContent = logEl.childElementCount + ' of ' + buffer.length + ' lines';
+        return;
+      }
+
+      var stick = followEl.checked || atBottom();
+      logEl.appendChild(rowFor(entry));
+      while (logEl.childElementCount > MAX_LINES) logEl.removeChild(logEl.firstChild);
+      if (stick) logEl.scrollTop = logEl.scrollHeight;
+
+      var shown = logEl.childElementCount;
+      shownEl.textContent = shown + ' of ' + buffer.length + ' lines';
+    }
+
+    function chip(id, label, status) {
+      var el = document.createElement('span');
+      el.className = 'chip' + (selected === id ? ' sel' : '');
+      if (status) {
+        var lamp = document.createElement('span');
+        lamp.className = 'lamp ' + status;
+        el.appendChild(lamp);
+      }
+      el.appendChild(document.createTextNode(label));
+      el.addEventListener('click', function () { selected = id; drawChips(lastStatus); render(); });
+      return el;
+    }
+
+    var lastStatus = null;
+
+    function drawChips(status) {
+      chipsEl.textContent = '';
+      chipsEl.appendChild(chip(null, 'All', ''));
+      if (!status || !status.labellers) return;
+      for (var i = 0; i < status.labellers.length; i++) {
+        var l = status.labellers[i];
+        var lamp = !l.running ? 'down' : (l.connected ? 'up' : 'idle');
+        chipsEl.appendChild(chip(l.id, l.id, lamp));
+      }
+    }
+
+    async function refreshStatus() {
+      try {
+        var res = await fetch('/api/status', { cache: 'no-store' });
+        var data = await res.json();
+        lastStatus = data;
+        siteEl.textContent = 'Site ' + data.site + ' · version ' + data.appVersion
+                           + ' · ' + data.labellers.length + ' labeller(s)';
+        drawChips(data);
+      } catch (e) {
+        siteEl.textContent = 'status unavailable';
+      }
+    }
+
+    async function loadBacklog() {
+      try {
+        var res = await fetch('/api/log/tail?lines=1000', { cache: 'no-store' });
+        var data = await res.json();
+        for (var i = 0; i < data.lines.length; i++) buffer.push(parse(data.lines[i]));
+        if (buffer.length > MAX_LINES) buffer = buffer.slice(buffer.length - MAX_LINES);
+        render();
+      } catch (e) {
+        append('[viewer] failed to load backlog: ' + e.message);
+      }
+    }
+
+    searchEl.addEventListener('input', render);
+    levelEl.addEventListener('change', render);
+    document.getElementById('clear').addEventListener('click', function () {
+      buffer = [];
+      render();
+    });
+
+    (async function () {
+      await refreshStatus();
+      setInterval(refreshStatus, STATUS_INTERVAL_MS);
+      await loadBacklog();
+
+      var es = new EventSource('/events/log');
+      es.onopen = function () { connEl.textContent = '● following'; connEl.className = 'ok'; };
+      es.onmessage = function (e) { append(e.data); };
+      es.onerror = function () { connEl.textContent = '● reconnecting…'; connEl.className = 'bad'; };
+    })();
+  })();
+  </script>
+</body>
+</html>

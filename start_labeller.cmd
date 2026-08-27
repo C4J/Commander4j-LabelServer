@@ -1,1 +1,1 @@
-java -cp ./LabelServer.jar;./lib/devonly/i4jruntime.jar com.commander4j.labeller.Service
+java -Dlog4j2.shutdownHookEnabled=false -cp ./LabelServer.jar;./lib/devonly/i4jruntime.jar com.commander4j.labeller.Service

@@ -1,11 +1,15 @@
 package com.commander4j.labeller;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.logging.log4j.Logger;
 
+import com.commander4j.labeller.web.WebServer;
 import com.commander4j.xml.JXMLDocument;
 
 public class Server extends Thread
@@ -15,12 +19,18 @@ public class Server extends Thread
 	LabellerUtility utils = new LabellerUtility();
 	public boolean started = false;
 	public boolean shutdown = false;
-	HashMap<String, Labeller> labellers = new HashMap<String, Labeller>();
+	ConcurrentHashMap<String, Labeller> labellers = new ConcurrentHashMap<String, Labeller>();
 	public static String Site = "Test";
+
+	/** Web viewer config, read from config.xml. Port 0 means "not configured" = not started. */
+	private String webHost = "0.0.0.0";
+	private int webPort = 0;
+	private WebServer webServer = null;
 
 	private void requestStop()
 	{
 		logger.info("Server - requestStop");
+		stopWebServer();
 		stopAllLabellers();
 	}
 
@@ -119,12 +129,64 @@ public class Server extends Thread
 		}
 	}
 
+	/**
+	 * Snapshot of the loaded labellers, for the read-only web status endpoint. A copy, so a
+	 * caller iterating it is unaffected by a concurrent start/stop.
+	 */
+	public List<Labeller> getLabellers()
+	{
+		return new ArrayList<Labeller>(labellers.values());
+	}
+
 	public void startupInterface()
 	{
 		logger.info("Server - startupInterface");
 		loadSite();
 		loadLabellers();
 		startAllLabellers();
+		startWebServer();
+	}
+
+	/**
+	 * Starts the read-only web viewer if config.xml asked for it. Diagnostics must never
+	 * take the line down, so any failure here (a port already in use being the likely one)
+	 * is logged and swallowed — the labellers carry on regardless.
+	 */
+	private void startWebServer()
+	{
+		if (webPort == 0)
+		{
+			// loadWebServerConfig has already logged why.
+			return;
+		}
+
+		try
+		{
+			webServer = new WebServer(this, webHost, webPort);
+			webServer.start();
+		}
+		catch (Exception ex)
+		{
+			webServer = null;
+			logger.error("Server - unable to start web viewer on " + webHost + ":" + webPort + " - " + ex.getMessage());
+			logger.warn("Server - continuing without the web viewer; labelling is unaffected.");
+		}
+	}
+
+	private void stopWebServer()
+	{
+		if (webServer != null)
+		{
+			try
+			{
+				webServer.stop();
+			}
+			catch (Exception ex)
+			{
+				logger.error("Server - error stopping web viewer : " + ex.getMessage());
+			}
+			webServer = null;
+		}
 	}
 
 	public void requestPrint(String id)
@@ -152,6 +214,61 @@ public class Server extends Thread
 		logger.info("Server - loadSite");
 		JXMLDocument xmltest = new JXMLDocument("./xml/config/config.xml");
 		Site = xmltest.findXPath("//config/site[1]/@id");
+		loadWebServerConfig(xmltest);
+	}
+
+	/**
+	 * Reads the optional web viewer settings from config.xml:
+	 *
+	 * <pre>
+	 *     &lt;webserver port="8080"/&gt;
+	 *     &lt;webserver port="8080" host="127.0.0.1" enabled="Y"/&gt;
+	 * </pre>
+	 *
+	 * The element is optional and absent from every site's config.xml today, so no listener
+	 * opens until someone adds it — an upgrade on its own changes nothing. {@code host}
+	 * defaults to all interfaces and {@code enabled} to Y, so a port is all that is needed.
+	 */
+	private void loadWebServerConfig(JXMLDocument xmltest)
+	{
+		String port = xmltest.findXPath("//config/webserver[1]/@port").trim();
+		String host = xmltest.findXPath("//config/webserver[1]/@host").trim();
+		String enabled = xmltest.findXPath("//config/webserver[1]/@enabled").trim();
+
+		if (port.equals(""))
+		{
+			logger.info("Server - no <webserver> element in config.xml - web viewer not started.");
+			return;
+		}
+
+		if (enabled.equals("") == false && enabled.toUpperCase().equals("Y") == false)
+		{
+			logger.info("Server - web viewer disabled in config.xml (enabled=" + enabled + ")");
+			return;
+		}
+
+		try
+		{
+			int portNumber = Integer.parseInt(port);
+			if ((portNumber < 1) || (portNumber > 65535))
+			{
+				logger.error("Server - web viewer port out of range (1..65535) in config.xml : [" + port + "] - viewer not started.");
+				return;
+			}
+			webPort = portNumber;
+		}
+		catch (NumberFormatException ex)
+		{
+			logger.error("Server - web viewer port is not a number in config.xml : [" + port + "] - viewer not started.");
+			return;
+		}
+
+		if (host.equals("") == false)
+		{
+			webHost = host;
+		}
+
+		logger.info("Server - web viewer configured on " + webHost + ":" + webPort);
 	}
 	
 	public void loadLabellers()

@@ -7,7 +7,7 @@
   
   <Appenders>
     <Console name="Console" target="SYSTEM_OUT" ignoreExceptions="false">
-      <PatternLayout pattern="%d{DEFAULT} - %msg%n"/>
+      <PatternLayout pattern="%d{DEFAULT} - [%t] %msg%n"/>
     </Console>
     
     <RollingFile
@@ -17,7 +17,7 @@
       ignoreExceptions="false">
       
       <PatternLayout>
-        <Pattern>%d{yyyy-MM-dd HH:mm:ss} %-5p %m%n</Pattern>
+        <Pattern>%d{yyyy-MM-dd HH:mm:ss} %-5p [%t] %m%n</Pattern>
       </PatternLayout>
       
       <Policies>
