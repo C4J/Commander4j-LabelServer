@@ -17,6 +17,5 @@
 	<classpathentry kind="lib" path="lib/log4j-api-2.25.5.jar"/>
 	<classpathentry kind="lib" path="lib/log4j-core-2.25.5.jar"/>
 	<classpathentry kind="lib" path="lib/opencsv-5.12.0.jar"/>
-	<classpathentry kind="lib" path="lib/devonly/i4jruntime.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

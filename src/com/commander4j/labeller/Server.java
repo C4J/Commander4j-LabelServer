@@ -1,6 +1,7 @@
 package com.commander4j.labeller;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -131,11 +132,28 @@ public class Server extends Thread
 
 	/**
 	 * Snapshot of the loaded labellers, for the read-only web status endpoint. A copy, so a
-	 * caller iterating it is unaffected by a concurrent start/stop.
+	 * caller iterating it is unaffected by a concurrent start/stop. Sorted by id so the web
+	 * viewer always lists them in the same order - the underlying map is a hash map, so its
+	 * own iteration order is arbitrary and can reshuffle when a labeller is added or removed.
 	 */
 	public List<Labeller> getLabellers()
 	{
-		return new ArrayList<Labeller>(labellers.values());
+		List<String> ids = new ArrayList<String>(labellers.keySet());
+		Collections.sort(ids, String.CASE_INSENSITIVE_ORDER);
+
+		List<Labeller> result = new ArrayList<Labeller>();
+
+		for (String id : ids)
+		{
+			Labeller labeller = labellers.get(id);
+
+			if (labeller != null)
+			{
+				result.add(labeller);
+			}
+		}
+
+		return result;
 	}
 
 	public void startupInterface()
